@@ -1,36 +1,151 @@
 "use client";
 
-import { Lightbulb, Sparkles } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
+import { useState } from "react";
+import { Check, Copy } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-const PLANNED = [
-  "Avoid SELECT * on wide tables",
-  "Flag Seq Scan on > 1k rows",
-  "Detect nested loop blowups",
-  "Suggest index creation from Filter clauses",
+type Severity = "warning" | "info" | "danger";
+
+type Suggestion = {
+  sev: Severity;
+  title: string;
+  body: string;
+  category: string;
+  sql?: string;
+};
+
+// Placeholder content — the backend optimization engine lands in Phase 5.
+// The panel is already wired to render real suggestions when the API exposes them.
+const PLACEHOLDER: Suggestion[] = [
+  {
+    sev: "info",
+    title: "Optimization engine pending",
+    body: "Rule-based suggestions will surface here once the backend engine lands. Expect flags for Seq Scans on large tables, missing indices inferred from Filter clauses, and SELECT * warnings.",
+    category: "Info",
+  },
 ];
 
-export function SuggestionsPanel() {
+const toneMap: Record<
+  Severity,
+  { dot: string; fg: string; bg: string }
+> = {
+  warning: {
+    dot: "bg-[var(--sev-warn)]",
+    fg: "text-[var(--sev-warn)]",
+    bg: "bg-[var(--sev-warn-bg)]",
+  },
+  info: {
+    dot: "bg-muted-foreground",
+    fg: "text-muted-foreground",
+    bg: "bg-muted",
+  },
+  danger: {
+    dot: "bg-[var(--sev-danger)]",
+    fg: "text-[var(--sev-danger)]",
+    bg: "bg-[var(--sev-danger-bg)]",
+  },
+};
+
+function SuggestionItem({
+  s,
+  last,
+}: {
+  s: Suggestion;
+  last: boolean;
+}) {
+  const tone = toneMap[s.sev];
+  const [copied, setCopied] = useState(false);
+
+  async function copy() {
+    if (!s.sql) return;
+    try {
+      await navigator.clipboard.writeText(s.sql);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1200);
+    } catch {
+      /* ignore */
+    }
+  }
+
   return (
-    <div className="flex flex-col items-center justify-center gap-4 py-12 text-center">
-      <div className="relative h-12 w-12 rounded-full bg-muted flex items-center justify-center">
-        <Lightbulb className="h-5 w-5 text-muted-foreground" />
-        <Sparkles className="absolute -top-0.5 -right-0.5 h-3 w-3 text-amber-500" />
-      </div>
-      <div>
-        <div className="text-sm font-semibold">Optimization engine pending</div>
-        <p className="mx-auto max-w-sm mt-1 text-xs text-muted-foreground">
-          Rule-based suggestions will surface here once the optimization service
-          lands in Phase 5.
+    <div
+      className={cn(
+        "flex gap-[14px] px-4 py-[14px]",
+        !last && "border-b border-border"
+      )}
+    >
+      <span
+        className={cn(
+          "mt-1.5 h-2 w-2 shrink-0 rounded-full",
+          tone.dot
+        )}
+      />
+      <div className="flex-1 min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
+          <span className="text-[13px] font-semibold tracking-[-0.005em]">
+            {s.title}
+          </span>
+          <span
+            className={cn(
+              "text-[9.5px] uppercase tracking-[0.14em] font-medium px-[7px] py-0.5 rounded",
+              tone.bg,
+              tone.fg
+            )}
+          >
+            {s.category}
+          </span>
+        </div>
+        <p
+          className="mt-1.5 text-[12.5px] text-muted-foreground leading-[1.55]"
+          style={{ textWrap: "pretty" }}
+        >
+          {s.body}
         </p>
+        {s.sql && (
+          <div className="mt-2.5 flex flex-wrap items-center gap-2">
+            <code className="font-mono text-[11.5px] bg-muted text-foreground px-2.5 py-[5px] rounded-md">
+              {s.sql}
+            </code>
+            <button
+              type="button"
+              onClick={copy}
+              className="inline-flex items-center gap-1 text-[11px] text-muted-foreground hover:text-foreground px-2.5 py-1 rounded-md hover:bg-muted transition-colors"
+            >
+              {copied ? (
+                <>
+                  <Check className="h-3 w-3" /> Copied
+                </>
+              ) : (
+                <>
+                  <Copy className="h-3 w-3" /> Copy
+                </>
+              )}
+            </button>
+          </div>
+        )}
       </div>
-      <div className="flex flex-wrap items-center justify-center gap-1.5 max-w-md">
-        {PLANNED.map((p) => (
-          <Badge key={p} variant="outline" className="normal-case tracking-normal font-normal">
-            {p}
-          </Badge>
-        ))}
+    </div>
+  );
+}
+
+export function SuggestionsPanel({
+  items = PLACEHOLDER,
+}: {
+  items?: Suggestion[];
+}) {
+  if (!items.length) {
+    return (
+      <div className="py-12 text-center text-sm text-muted-foreground">
+        No suggestions for this query.
       </div>
+    );
+  }
+
+  return (
+    <div className="py-2">
+      {items.map((s, i) => (
+        <SuggestionItem key={i} s={s} last={i === items.length - 1} />
+      ))}
     </div>
   );
 }

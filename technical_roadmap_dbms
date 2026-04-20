@@ -17,6 +17,13 @@ This roadmap provides a comprehensive, step-by-step developer guide to implement
 - **PostgreSQL**: Ensure a local PostgreSQL instance is running.
 - **Init Prisma**: `npx prisma init`
 - **Database Architecture**: Create an admin database instance `queryanalyzer`.
+- **Demo Dataset (Pagila)**: Seed `queryanalyzer` with the Pagila sample schema (`https://github.com/devrimgunduz/pagila`) so the Analyzer has meaningful tables, indices, and row volumes to demonstrate Seq Scan vs Index Scan behavior out of the box.
+  ```bash
+  psql -U postgres -d queryanalyzer -f pagila-schema.sql
+  psql -U postgres -d queryanalyzer -f pagila-data.sql
+  # Re-grant SELECT after new tables are introduced:
+  psql -U postgres -d queryanalyzer -c "GRANT SELECT ON ALL TABLES IN SCHEMA public TO readonly_user;"
+  ```
 - **Target DB Security (CRITICAL)**: Create a strictly isolated `readonly_user` role directly in Postgres:
   ```sql
   CREATE ROLE readonly_user WITH LOGIN PASSWORD 'strong_password';
@@ -155,5 +162,46 @@ This roadmap provides a comprehensive, step-by-step developer guide to implement
 - Simple regex replacement matching. E.g. detecting IN-subqueries: `WHERE col IN (SELECT col FROM map)` -> Output a code-snippet refactoring to use `INNER JOIN`.
 - Expose via a frontend "Rewrite Code" button.
 
-### C. Large Dataset Generator API
+### C. User-Supplied Database Connections (Bring-Your-Own-DB)
+- **Motivation**: Pagila covers the demo case, but real users want to analyze queries against *their own* data. Today the server has a single hardcoded `TARGET_DB_URL`; this phase lifts that constraint.
+- **Data Model** (`prisma/schema.prisma`):
+  ```prisma
+  model Connection {
+    id         String   @id @default(cuid())
+    userId     String
+    name       String
+    host       String
+    port       Int
+    database   String
+    username   String
+    secretEnc  String   // AES-GCM encrypted password, key from env
+    sslMode    String   @default("prefer")
+    createdAt  DateTime @default(now())
+    lastUsedAt DateTime?
+  }
+  ```
+- **Endpoints**:
+  - `POST /api/v1/connections` — create (validate by issuing `SELECT 1` before persisting).
+  - `GET /api/v1/connections` — list for current user.
+  - `DELETE /api/v1/connections/:id`.
+  - `POST /api/v1/connections/:id/test` — liveness probe.
+- **Execution path changes**: `/execute` and `/benchmark` accept an optional `connectionId`. The server maintains an LRU of `pg.Pool` instances keyed by connection id (cap ~20, idle-evict after 5 min).
+- **Safety (does NOT rely on remote role permissions)**:
+  ```ts
+  await client.query("BEGIN TRANSACTION READ ONLY");
+  await client.query("SET LOCAL statement_timeout = '10s'");
+  await client.query("SET LOCAL lock_timeout = '2s'");
+  await client.query("SET LOCAL idle_in_transaction_session_timeout = '15s'");
+  // ... run user query ...
+  await client.query("ROLLBACK");
+  ```
+  A `READ ONLY` transaction rejects any write at the Postgres level regardless of the role, so users pointing at a superuser connection still can't mutate state through QueryLab. Keep the existing SELECT-only regex validator as defense-in-depth.
+- **Secrets at rest**: encrypt `password` with AES-256-GCM using a key from `CONNECTION_ENC_KEY` env var. Never return the plaintext password on read endpoints.
+- **Frontend**:
+  - New `/connections` route with a list + "Add connection" dialog (host, port, db, user, password, sslmode).
+  - Active connection picker lives in the topbar (the existing status dot becomes the active-connection indicator).
+  - `zustand` store tracks `activeConnectionId`; all `/execute` calls include it.
+- **Out of scope for this phase**: SSH tunneling, IAM auth, connection pooling per user session — parked for a later hardening pass.
+
+### D. Large Dataset Generator API
 - Build `POST /api/generate-mock` route using `faker.js` utility loops inside a Prisma transaction to batch insert `10,000` to `100,000` records quickly across a mocked schema specifically designed to showcase inefficient `SELECT *` querying.

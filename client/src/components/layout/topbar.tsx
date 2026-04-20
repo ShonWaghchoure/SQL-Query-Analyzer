@@ -4,6 +4,7 @@ import { usePathname } from "next/navigation";
 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import { ThemeToggle } from "./theme-toggle";
 
 const TITLES: Record<string, { title: string; subtitle: string }> = {
   "/": {
@@ -40,18 +41,23 @@ export function Topbar() {
   return (
     <header className="h-14 shrink-0 border-b border-border bg-background/80 backdrop-blur-md flex items-center px-6 sticky top-0 z-10">
       <div className="flex flex-col leading-tight">
-        <h1 className="text-sm font-semibold tracking-tight">{meta.title}</h1>
-        <p className="text-xs text-muted-foreground">{meta.subtitle}</p>
+        <h1 className="text-[13px] font-semibold tracking-[-0.01em]">
+          {meta.title}
+        </h1>
+        <p className="text-[11.5px] text-muted-foreground mt-0.5">
+          {meta.subtitle}
+        </p>
       </div>
       <div className="ml-auto flex items-center gap-3">
-        <Badge variant="success" className="normal-case tracking-normal">
-          <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
+        <Badge variant="success" className="normal-case tracking-normal font-normal">
+          <span className="h-1.5 w-1.5 rounded-full bg-[var(--sev-accent)]" />
           API connected
         </Badge>
-        <Separator orientation="vertical" className="h-5" />
+        <Separator orientation="vertical" className="h-[18px]" />
         <span className="font-mono text-[11px] text-muted-foreground">
           v0.1.0
         </span>
+        <ThemeToggle />
       </div>
     </header>
   );

@@ -3,17 +3,49 @@
 import type { ExecuteSuccess } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-function renderCell(value: unknown): { text: string; nullish: boolean } {
-  if (value === null || value === undefined) return { text: "NULL", nullish: true };
-  if (typeof value === "object") return { text: JSON.stringify(value), nullish: false };
-  return { text: String(value), nullish: false };
+// Rough pg OID -> friendly name. Non-exhaustive, but covers the common cases
+// and gives the header annotation the right feel per the design spec.
+const OID_TYPES: Record<number, string> = {
+  16: "bool",
+  20: "int8",
+  21: "int2",
+  23: "int4",
+  25: "text",
+  700: "float4",
+  701: "float8",
+  1043: "varchar",
+  1082: "date",
+  1083: "time",
+  1114: "timestamp",
+  1184: "timestamptz",
+  1700: "numeric",
+  2950: "uuid",
+  3802: "jsonb",
+  114: "json",
+};
+
+function typeHint(oid?: number): string {
+  if (oid === undefined) return "";
+  return OID_TYPES[oid] ?? `oid:${oid}`;
+}
+
+function renderCell(value: unknown): { text: string; nullish: boolean; zero: boolean } {
+  if (value === null || value === undefined)
+    return { text: "NULL", nullish: true, zero: false };
+  if (typeof value === "object")
+    return { text: JSON.stringify(value), nullish: false, zero: false };
+  const text = String(value);
+  return { text, nullish: false, zero: text === "0" };
 }
 
 export function ResultsTable({ result }: { result: ExecuteSuccess }) {
   const rows = result.data ?? [];
-  const columns =
-    result.fields?.map((f) => f.name) ??
-    (rows[0] ? Object.keys(rows[0]) : []);
+  const fields = result.fields ?? [];
+  const columns = fields.length
+    ? fields.map((f) => ({ name: f.name, type: typeHint(f.dataType) }))
+    : rows[0]
+    ? Object.keys(rows[0]).map((n) => ({ name: n, type: "" }))
+    : [];
 
   if (rows.length === 0) {
     return (
@@ -30,59 +62,59 @@ export function ResultsTable({ result }: { result: ExecuteSuccess }) {
   }
 
   return (
-    <div className="overflow-auto max-h-[480px]">
-      <table className="w-full text-sm border-separate border-spacing-0">
-        <thead className="sticky top-0 z-10">
-          <tr>
-            <th className="sticky left-0 z-20 bg-muted/90 backdrop-blur text-left font-medium text-[10px] uppercase tracking-[0.14em] text-muted-foreground px-3 py-2.5 border-b border-border w-12">
-              #
-            </th>
-            {columns.map((col) => (
-              <th
-                key={col}
-                className="bg-muted/90 backdrop-blur text-left font-medium text-[10px] uppercase tracking-[0.14em] text-muted-foreground px-3 py-2.5 border-b border-border whitespace-nowrap"
-              >
-                {col}
-              </th>
-            ))}
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row, i) => (
-            <tr
-              key={i}
-              className={cn(
-                "transition-colors hover:bg-muted/40",
-                i % 2 === 1 && "bg-muted/15"
-              )}
-            >
-              <td className="sticky left-0 bg-inherit px-3 py-2 text-xs text-muted-foreground font-mono tabular-nums border-b border-border/50">
-                {i + 1}
-              </td>
-              {columns.map((col) => {
-                const { text, nullish } = renderCell(
-                  (row as Record<string, unknown>)[col]
-                );
-                return (
-                  <td
-                    key={col}
-                    className="px-3 py-2 font-mono text-[12.5px] whitespace-nowrap max-w-[360px] overflow-hidden text-ellipsis border-b border-border/50"
-                    title={text}
-                  >
-                    {nullish ? (
-                      <span className="text-muted-foreground/60 italic">
-                        NULL
-                      </span>
-                    ) : (
-                      text
-                    )}
-                  </td>
-                );
-              })}
+    <div className="flex flex-col">
+      <div className="overflow-auto max-h-[480px]">
+        <table className="w-full border-collapse">
+          <thead>
+            <tr>
+              {columns.map((col) => (
+                <th
+                  key={col.name}
+                  className="text-left px-[14px] py-[10px] font-medium text-[10.5px] uppercase tracking-[0.12em] text-muted-foreground border-b border-border bg-[var(--color-table-head)] whitespace-nowrap"
+                >
+                  {col.name}
+                  {col.type && (
+                    <span className="font-mono text-[10px] normal-case tracking-normal ml-1.5 text-border-strong">
+                      {col.type}
+                    </span>
+                  )}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={i} className="border-b border-border">
+                {columns.map((col) => {
+                  const { text, nullish, zero } = renderCell(
+                    (row as Record<string, unknown>)[col.name]
+                  );
+                  return (
+                    <td
+                      key={col.name}
+                      className={cn(
+                        "px-[14px] py-[9px] font-mono text-[12.5px] whitespace-nowrap max-w-[360px] overflow-hidden text-ellipsis",
+                        (nullish || zero) && "text-muted-foreground"
+                      )}
+                      title={text}
+                    >
+                      {nullish ? <span className="italic">NULL</span> : text}
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <div className="flex items-center justify-between px-[14px] py-2.5 text-[11px] text-muted-foreground border-t border-border">
+        <span>
+          Showing {rows.length} of {result.rowCount ?? rows.length} rows
+        </span>
+        <span className="font-mono">
+          {result.executionTimeMs.toFixed(2)} ms
+        </span>
+      </div>
     </div>
   );
 }

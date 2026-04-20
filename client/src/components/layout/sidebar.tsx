@@ -12,7 +12,6 @@ import {
   BookOpen,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import { Badge } from "@/components/ui/badge";
 
 type NavItem = {
   href: string;
@@ -39,18 +38,20 @@ export function Sidebar() {
           <Database className="h-3.5 w-3.5" />
         </div>
         <div className="flex flex-col leading-tight">
-          <span className="text-sm font-semibold tracking-tight">QueryLab</span>
-          <span className="text-[10px] uppercase tracking-[0.12em] text-muted-foreground">
+          <span className="text-[13px] font-semibold tracking-[-0.01em]">
+            QueryLab
+          </span>
+          <span className="text-[9.5px] uppercase tracking-[0.12em] text-muted-foreground mt-0.5">
             SQL Analyzer
           </span>
         </div>
       </div>
 
-      <div className="px-3 pt-4 pb-1 text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80 font-medium">
+      <div className="px-3 pt-4 pb-1 text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground font-medium">
         Workspace
       </div>
 
-      <nav className="flex-1 px-2 space-y-0.5">
+      <nav className="flex-1 px-2 space-y-px">
         {NAV.map((item) => {
           const active =
             pathname === item.href ||
@@ -61,23 +62,26 @@ export function Sidebar() {
               key={item.href}
               href={item.href}
               className={cn(
-                "group relative flex items-center justify-between gap-3 rounded-md px-3 py-2 text-sm transition-all",
+                "group relative flex items-center justify-between gap-3 rounded-md px-3 py-2 text-sm transition-colors",
                 active
-                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium shadow-xs"
+                  ? "bg-sidebar-accent text-sidebar-accent-foreground font-medium"
                   : "text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground"
               )}
             >
               {active && (
-                <span className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r-full bg-primary" />
+                <span
+                  className="absolute left-0 top-1.5 bottom-1.5 w-0.5 rounded-r-full bg-primary"
+                  aria-hidden
+                />
               )}
               <span className="flex items-center gap-2.5">
-                <Icon className="h-4 w-4" />
+                <Icon className="h-[14px] w-[14px]" />
                 {item.label}
               </span>
               {!item.ready && (
-                <Badge variant="outline" className="text-[9px]">
+                <span className="text-[9px] uppercase tracking-[0.12em] text-muted-foreground rounded border border-border px-1.5 py-px">
                   soon
-                </Badge>
+                </span>
               )}
             </Link>
           );
@@ -91,21 +95,26 @@ export function Sidebar() {
           rel="noreferrer"
           className="flex items-center gap-2.5 rounded-md px-3 py-2 text-sm text-muted-foreground hover:bg-sidebar-accent/60 hover:text-foreground transition-colors"
         >
-          <BookOpen className="h-4 w-4" />
+          <BookOpen className="h-[14px] w-[14px]" />
           <span>SQL Reference</span>
         </a>
       </div>
 
       <div className="px-5 py-4 border-t border-border">
-        <div className="text-[10px] uppercase tracking-[0.14em] text-muted-foreground/80 mb-1.5">
+        <div className="text-[9.5px] uppercase tracking-[0.14em] text-muted-foreground mb-1.5">
           Connection
         </div>
         <div className="flex items-center gap-2 text-xs">
-          <span className="relative flex h-2 w-2">
-            <span className="absolute inline-flex h-full w-full rounded-full bg-emerald-500/50 animate-ping" />
-            <span className="relative inline-flex h-2 w-2 rounded-full bg-emerald-500" />
+          <span
+            className="h-1.5 w-1.5 rounded-full bg-[var(--sev-accent)]"
+            style={{
+              boxShadow:
+                "0 0 0 3px color-mix(in oklab, var(--sev-accent) 18%, transparent)",
+            }}
+          />
+          <span className="font-mono text-[11.5px] text-foreground">
+            readonly_user
           </span>
-          <span className="font-mono text-foreground/80">readonly_user</span>
         </div>
         <div className="mt-1 font-mono text-[10px] text-muted-foreground">
           postgres · queryanalyzer

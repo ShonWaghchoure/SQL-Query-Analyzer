@@ -77,8 +77,8 @@ export function AnalyzerWorkbench() {
       <Card>
         <CardHeader>
           <div className="flex items-center gap-3">
-            <div className="h-8 w-8 rounded-md bg-muted flex items-center justify-center">
-              <Terminal className="h-4 w-4 text-muted-foreground" />
+            <div className="h-[30px] w-[30px] rounded-md bg-muted flex items-center justify-center">
+              <Terminal className="h-[14px] w-[14px] text-muted-foreground" />
             </div>
             <div className="flex flex-col gap-0.5">
               <CardTitle>Query</CardTitle>
